@@ -1,4 +1,4 @@
-# AIC8800DC (UGREEN CM760-35262)
+# AIC8800DC / FC (UGREEN CM760-35262)
 
 Tested on Linux kernel 6.16 with openSUSE Tumbleweed.
 
