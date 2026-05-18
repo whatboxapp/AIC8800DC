@@ -10,19 +10,12 @@ I did not develop this software, The code is sourced from the UGREEN CM760-35262
 
 # Usage
 
+Simply run the master install script, which automatically compiles the driver, configures firmware, deploys USB switching rules, and loads the active driver:
+
 ```bash
-# sometimes you will need to eject the driver disk to switch working mode
-# the aic.rules should handle this (eject a69c:5721 and a69c:5722)
-# install setup files, scripts from UGREEN
+# Grant execution permissions
 chmod +x install_setup.sh
+
+# Run the master installer to compile, install, and configure everything automatically!
 sudo ./install_setup.sh
-
-# build kernel module
-cd drivers/aic8800
-make
-sudo make install
-
-# load kernel modules
-sudo modprobe aic8800_fdrv
-sudo modprobe aic_load_fw
 ```
