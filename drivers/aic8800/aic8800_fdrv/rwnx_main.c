@@ -43,6 +43,9 @@
 #include "aicwf_txrxif.h"
 #include "aicwf_compat_8800dc.h"
 #include "aicwf_compat_8800d80.h"
+#include "aic_priv_cmd.h"
+
+extern char country_code[];
 
 
 #ifdef CONFIG_USE_WIRELESS_EXT
@@ -524,8 +527,13 @@ static const int rwnx_hwq2uapsd[NL80211_NUM_ACS] = {
 #define P2P_ALIVE_TIME_MS       (1*1000)
 #define P2P_ALIVE_TIME_COUNT    200
 
-extern uint8_t scanning;
-extern uint8_t p2p_working;
+uint8_t scanning = 0;
+uint8_t p2p_working = 0;
+
+void rwnx_set_conn_state(atomic_t *drv_conn_state, int state)
+{
+    atomic_set(drv_conn_state, state);
+}
 struct semaphore aicwf_deinit_sem;
 atomic_t aicwf_deinit_atomic;
 
@@ -1579,7 +1587,7 @@ static int rwnx_close(struct net_device *dev)
                 // Set parameters to firmware
                 rwnx_send_me_config_req(rwnx_hw);
                 // Set channel parameters to firmware
-                rwnx_send_me_chan_config_req(rwnx_hw);
+                rwnx_send_me_chan_config_req(rwnx_hw, country_code);
             #if defined(AICWF_USB_SUPPORT)
             }
             #endif
@@ -1778,6 +1786,7 @@ static int parse_line (char *line, char *argv[])
     return (nargs);
 }
 
+#if 0
 unsigned int command_strtoul(const char *cp, char **endp, unsigned int base)
 {
     unsigned int result = 0, value, is_neg=0;
@@ -2885,6 +2894,7 @@ exit:
     kfree(command);
     return ret;
 }
+#endif
 
 #define IOCTL_HOSTAPD   (SIOCIWFIRSTPRIV+28)
 #define IOCTL_WPAS      (SIOCIWFIRSTPRIV+30)
@@ -3392,9 +3402,9 @@ static struct wireless_dev *rwnx_virtual_interface_add(struct rwnx_hw *rwnx_hw,
  * and a given role.
  */
 
-static struct rwnx_sta *rwnx_retrieve_sta(struct rwnx_hw *rwnx_hw,
-                                          struct rwnx_vif *rwnx_vif, u8 *addr,
-                                          __le16 fc, bool ap)
+struct rwnx_sta *rwnx_retrieve_sta(struct rwnx_hw *rwnx_hw,
+                                   struct rwnx_vif *rwnx_vif, u8 *addr,
+                                   __le16 fc, bool ap)
 {
     if (ap) {
         /* only deauth, disassoc and action are bufferable MMPDUs */
@@ -5205,6 +5215,20 @@ static int rwnx_cfg80211_set_monitor_channel(
     return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0))
+int rwnx_cfg80211_set_monitor_channel_(struct wiphy *wiphy, struct net_device *dev,
+                                             struct cfg80211_chan_def *chandef)
+{
+    return rwnx_cfg80211_set_monitor_channel(wiphy, dev, chandef);
+}
+#else
+int rwnx_cfg80211_set_monitor_channel_(struct wiphy *wiphy,
+                                             struct cfg80211_chan_def *chandef)
+{
+    return rwnx_cfg80211_set_monitor_channel(wiphy, chandef);
+}
+#endif
+
 /**
  * @probe_client: probe an associated client, must return a cookie that it
  *      later passes to cfg80211_probe_status().
@@ -6269,8 +6293,8 @@ int rwnx_cfg80211_change_bss(struct wiphy *wiphy, struct net_device *dev,
     return res;
 }
 
-static int rwnx_fill_station_info(struct rwnx_sta *sta, struct rwnx_vif *vif,
-                                  struct station_info *sinfo)
+int rwnx_fill_station_info(struct rwnx_sta *sta, struct rwnx_vif *vif,
+                           struct station_info *sinfo, u8 *phymode, u32 *tx_phyrate, u32 *rx_phyrate)
 {
 
         struct rwnx_sta_stats *stats = &sta->stats;
@@ -6399,7 +6423,7 @@ static int rwnx_fill_station_info(struct rwnx_sta *sta, struct rwnx_vif *vif,
         case FORMATMOD_NON_HT:
         case FORMATMOD_NON_HT_DUP_OFDM:
                 sinfo->rxrate.flags = 0;
-                sinfo->rxrate.legacy = legrates_lut_rate[legrates_lut[rx_vect1->leg_rate]];
+                sinfo->rxrate.legacy = legrates_lut[rx_vect1->leg_rate].rate;
                 break;
         case FORMATMOD_HT_MF:
         case FORMATMOD_HT_GF:
@@ -6460,6 +6484,53 @@ static int rwnx_fill_station_info(struct rwnx_sta *sta, struct rwnx_vif *vif,
                                          BIT(NL80211_STA_INFO_RX_BITRATE));
 #endif
 
+        if (phymode) {
+            switch (rx_vect1->format_mod) {
+            case FORMATMOD_NON_HT:
+            case FORMATMOD_NON_HT_DUP_OFDM:
+                if (vif->ch_index != RWNX_CH_NOT_SET && vif->rwnx_hw->wiphy->bands[NL80211_BAND_5GHZ] && vif->wdev.iftype == NL80211_IFTYPE_STATION) {
+                    *phymode = 2; // 802.11a
+                } else {
+                    if (rx_vect1->leg_rate <= 3) {
+                        *phymode = 0; // 802.11b
+                    } else {
+                        *phymode = 1; // 802.11g
+                    }
+                }
+                break;
+            case FORMATMOD_HT_MF:
+            case FORMATMOD_HT_GF:
+                *phymode = 3; // 802.11n
+                break;
+            case FORMATMOD_VHT:
+                *phymode = 4; // 802.11ac
+                break;
+            case FORMATMOD_HE_MU:
+            case FORMATMOD_HE_SU:
+            case FORMATMOD_HE_ER:
+                *phymode = 5; // 802.11ax
+                break;
+            default:
+                *phymode = 1;
+                break;
+            }
+        }
+
+        if (tx_phyrate) {
+            if (sinfo->txrate.flags & (RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_VHT_MCS | RATE_INFO_FLAGS_HE_MCS)) {
+                *tx_phyrate = (sinfo->txrate.mcs + 1) * 30;
+            } else {
+                *tx_phyrate = sinfo->txrate.legacy / 10;
+            }
+        }
+        if (rx_phyrate) {
+            if (sinfo->rxrate.flags & (RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_VHT_MCS | RATE_INFO_FLAGS_HE_MCS)) {
+                *rx_phyrate = (sinfo->rxrate.mcs + 1) * 30;
+            } else {
+                *rx_phyrate = sinfo->rxrate.legacy / 10;
+            }
+        }
+
         return 0;
 }
 
@@ -6500,7 +6571,7 @@ static int rwnx_cfg80211_get_station(struct wiphy *wiphy,
     }
 
     if (sta)
-        return rwnx_fill_station_info(sta, vif, sinfo);
+        return rwnx_fill_station_info(sta, vif, sinfo, NULL, NULL, NULL);
 
     return -ENOENT;
 }
@@ -7077,7 +7148,7 @@ static void rwnx_reg_notifier(struct wiphy *wiphy,
                 ((rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800DC ||
                  rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800DW ||
                  rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800D81) && testmode == 0)){
-                rwnx_send_me_chan_config_req(rwnx_hw);
+                rwnx_send_me_chan_config_req(rwnx_hw, country_code);
                 }
 }
 
@@ -9591,7 +9662,7 @@ if((g_rwnx_plat->usbdev->chipid == PRODUCT_ID_AIC8801) ||
                 ((rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800DC ||
                 rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800DW ||
                 rwnx_hw->usbdev->chipid == PRODUCT_ID_AIC8800D81) && testmode == 0)) {
-        rwnx_send_me_chan_config_req(rwnx_hw);
+        rwnx_send_me_chan_config_req(rwnx_hw, country_code);
                 #ifdef CONFIG_COEX
         rwnx_send_coex_req(rwnx_hw, 0, 1);
         #endif

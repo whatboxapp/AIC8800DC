@@ -392,6 +392,10 @@ reg_table reg_tables[] = {
 uint8_t get_ccode_region(char * ccode)
 {
 	int i, cnt;
+	if (!ccode) {
+		AICWFDBG(LOGDEBUG, "%s ccode is NULL, use default region\r\n", __func__);
+		return REGIONS_DEFAULT;
+	}
 	AICWFDBG(LOGDEBUG, "%s ccode:%s\r\n", __func__, ccode);
 
 	cnt = sizeof(reg_tables) / sizeof(reg_tables[0]);
