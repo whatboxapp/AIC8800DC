@@ -430,4 +430,24 @@ enum {
 typedef __s64 time64_t;
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static inline bool cfg80211_rx_spurious_frame_compat(struct net_device *dev, const u8 *addr, gfp_t gfp)
+{
+    return cfg80211_rx_spurious_frame(dev, addr, -1, gfp);
+}
+static inline bool cfg80211_rx_unexpected_4addr_frame_compat(struct net_device *dev, const u8 *addr, gfp_t gfp)
+{
+    return cfg80211_rx_unexpected_4addr_frame(dev, addr, -1, gfp);
+}
+#else
+static inline bool cfg80211_rx_spurious_frame_compat(struct net_device *dev, const u8 *addr, gfp_t gfp)
+{
+    return cfg80211_rx_spurious_frame(dev, addr, gfp);
+}
+static inline bool cfg80211_rx_unexpected_4addr_frame_compat(struct net_device *dev, const u8 *addr, gfp_t gfp)
+{
+    return cfg80211_rx_unexpected_4addr_frame(dev, addr, gfp);
+}
+#endif
+
 #endif /* _RWNX_COMPAT_H_ */

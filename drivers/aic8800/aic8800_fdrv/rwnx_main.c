@@ -3863,13 +3863,25 @@ bool key_flag = false;
  * @add_key: add a key with the given parameters. @mac_addr will be %NULL
  *      when adding a group key.
  */
-static int rwnx_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
-                                                                 int link_id,
-#endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
+                                 int link_id,
                                  u8 key_index, bool pairwise, const u8 *mac_addr,
                                  struct key_params *params)
 {
+    struct net_device *netdev = wdev->netdev;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
+static int rwnx_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
+                                 int link_id,
+                                 u8 key_index, bool pairwise, const u8 *mac_addr,
+                                 struct key_params *params)
+{
+#else
+static int rwnx_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
+                                 u8 key_index, bool pairwise, const u8 *mac_addr,
+                                 struct key_params *params)
+{
+#endif
     struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
     struct rwnx_vif *vif = netdev_priv(netdev);
     int i, error = 0;
@@ -3959,15 +3971,27 @@ static int rwnx_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
  *      not possible to retrieve the key, -ENOENT if it doesn't exist.
  *
  */
-static int rwnx_cfg80211_get_key(struct wiphy *wiphy, struct net_device *netdev,
-#if (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
-                                                                 int link_id,
-#endif
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_get_key(struct wiphy *wiphy, struct wireless_dev *wdev,
+                                 int link_id,
                                  u8 key_index, bool pairwise, const u8 *mac_addr,
                                  void *cookie,
                                  void (*callback)(void *cookie, struct key_params*))
 {
+#elif (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
+static int rwnx_cfg80211_get_key(struct wiphy *wiphy, struct net_device *netdev,
+                                 int link_id,
+                                 u8 key_index, bool pairwise, const u8 *mac_addr,
+                                 void *cookie,
+                                 void (*callback)(void *cookie, struct key_params*))
+{
+#else
+static int rwnx_cfg80211_get_key(struct wiphy *wiphy, struct net_device *netdev,
+                                 u8 key_index, bool pairwise, const u8 *mac_addr,
+                                 void *cookie,
+                                 void (*callback)(void *cookie, struct key_params*))
+{
+#endif
     RWNX_DBG(RWNX_FN_ENTRY_STR);
 
     return -1;
@@ -3978,13 +4002,22 @@ static int rwnx_cfg80211_get_key(struct wiphy *wiphy, struct net_device *netdev,
  * @del_key: remove a key given the @mac_addr (%NULL for a group key)
  *      and @key_index, return -ENOENT if the key doesn't exist.
  */
-static int rwnx_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
-#if (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
-                                                                 int link_id,
-#endif
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
+                                 int link_id,
                                  u8 key_index, bool pairwise, const u8 *mac_addr)
 {
+    struct net_device *netdev = wdev->netdev;
+#elif (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
+static int rwnx_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
+                                 int link_id,
+                                 u8 key_index, bool pairwise, const u8 *mac_addr)
+{
+#else
+static int rwnx_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
+                                 u8 key_index, bool pairwise, const u8 *mac_addr)
+{
+#endif
     struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
     struct rwnx_vif *vif = netdev_priv(netdev);
     int error;
@@ -4033,15 +4066,30 @@ static int rwnx_cfg80211_set_default_key(struct wiphy *wiphy,
 /**
  * @set_default_mgmt_key: set the default management frame key on an interface
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
 static int rwnx_cfg80211_set_default_mgmt_key(struct wiphy *wiphy,
-                                              struct net_device *netdev,
-#if (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
-                                                                 int link_id,
-#endif
+                                              struct wireless_dev *wdev,
+                                              int link_id,
                                               u8 key_index)
 {
     return 0;
 }
+#elif (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
+static int rwnx_cfg80211_set_default_mgmt_key(struct wiphy *wiphy,
+                                              struct net_device *netdev,
+                                              int link_id,
+                                              u8 key_index)
+{
+    return 0;
+}
+#else
+static int rwnx_cfg80211_set_default_mgmt_key(struct wiphy *wiphy,
+                                              struct net_device *netdev,
+                                              u8 key_index)
+{
+    return 0;
+}
+#endif
 
 /**
  * @connect: Connect to the ESS with the specified parameters. When connected,
@@ -4124,7 +4172,12 @@ static int rwnx_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
         key_params.key_len = sme->key_len;
         key_params.seq_len = 0;
         key_params.cipher = sme->crypto.cipher_group;
-        rwnx_cfg80211_add_key(wiphy, dev,
+        rwnx_cfg80211_add_key(wiphy,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+                                &rwnx_vif->wdev,
+#else
+                                dev,
+#endif
 #if (LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION)
                                 0,
 #endif
@@ -4360,6 +4413,16 @@ static int rwnx_cfg80211_external_auth(struct wiphy *wiphy, struct net_device *d
 /**
  * @add_station: Add a new station.
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_add_station(struct wiphy *wiphy,
+        struct wireless_dev *wdev,
+        const u8 *mac,
+        struct station_parameters *params)
+{
+    struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
+    struct net_device *dev = wdev->netdev;
+    struct rwnx_vif *rwnx_vif = container_of(wdev, struct rwnx_vif, wdev);
+#else
 static int rwnx_cfg80211_add_station(struct wiphy *wiphy,
         struct net_device *dev,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0))
@@ -4371,6 +4434,7 @@ static int rwnx_cfg80211_add_station(struct wiphy *wiphy,
 {
     struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
     struct rwnx_vif *rwnx_vif = netdev_priv(dev);
+#endif
     struct me_sta_add_cfm me_sta_add_cfm;
     int error = 0;
 
@@ -4491,6 +4555,15 @@ static int rwnx_cfg80211_add_station(struct wiphy *wiphy,
 /**
  * @del_station: Remove a station
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_del_station_compat(struct wiphy *wiphy,
+                                            struct wireless_dev *wdev,
+                                            struct station_del_parameters *params)
+{
+    struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
+    struct net_device *dev = wdev->netdev;
+    struct rwnx_vif *rwnx_vif = container_of(wdev, struct rwnx_vif, wdev);
+#else
 static int rwnx_cfg80211_del_station_compat(struct wiphy *wiphy,
                                             struct net_device *dev,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0))
@@ -4504,6 +4577,7 @@ static int rwnx_cfg80211_del_station_compat(struct wiphy *wiphy,
 {
     struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
     struct rwnx_vif *rwnx_vif = netdev_priv(dev);
+#endif
     struct rwnx_sta *cur, *tmp;
     int error = 0, found = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
@@ -4559,7 +4633,11 @@ static int rwnx_cfg80211_del_station_compat(struct wiphy *wiphy,
                                 }
                         }
                         if (rwnx_vif->wdev.iftype == NL80211_IFTYPE_AP || rwnx_vif->wdev.iftype == NL80211_IFTYPE_P2P_GO) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+                                cfg80211_del_sta(&rwnx_vif->wdev, cur->mac_addr, GFP_KERNEL);
+#else
                                 cfg80211_del_sta(rwnx_vif->ndev, cur->mac_addr, GFP_KERNEL);
+#endif
                         }
 
 #ifdef AICWF_RX_REORDER
@@ -4772,6 +4850,15 @@ void apm_probe_sta_work_process(struct work_struct *work)
  *      them, also against the existing state! Drivers must call
  *      cfg80211_check_station_change() to validate the information.
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_change_station(struct wiphy *wiphy, struct wireless_dev *wdev,
+        const u8 *mac,
+        struct station_parameters *params)
+{
+    struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
+    struct net_device *dev = wdev->netdev;
+    struct rwnx_vif *vif = container_of(wdev, struct rwnx_vif, wdev);
+#else
 static int rwnx_cfg80211_change_station(struct wiphy *wiphy, struct net_device *dev,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0))
         u8 *mac,
@@ -4782,6 +4869,7 @@ static int rwnx_cfg80211_change_station(struct wiphy *wiphy, struct net_device *
 {
     struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
     struct rwnx_vif *vif = netdev_priv(dev);
+#endif
     struct rwnx_sta *sta;
 
     sta = rwnx_get_sta(rwnx_hw, mac);
@@ -5118,7 +5206,11 @@ static int rwnx_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
     /* delete any remaining STA*/
     while (!list_empty(&rwnx_vif->ap.sta_list)) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+        rwnx_cfg80211_del_station_compat(wiphy, &rwnx_vif->wdev, NULL);
+#else
         rwnx_cfg80211_del_station_compat(wiphy, dev, NULL);
+#endif
     }
 
     /* delete BC/MC STA */
@@ -6538,6 +6630,15 @@ int rwnx_fill_station_info(struct rwnx_sta *sta, struct rwnx_vif *vif,
 /**
  * @get_station: get station information for the station identified by @mac
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_get_station(struct wiphy *wiphy,
+        struct wireless_dev *wdev,
+        const u8 *mac,
+        struct station_info *sinfo)
+{
+    struct rwnx_vif *vif = container_of(wdev, struct rwnx_vif, wdev);
+    struct net_device *dev = wdev->netdev;
+#else
 static int rwnx_cfg80211_get_station(struct wiphy *wiphy,
         struct net_device *dev,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0))
@@ -6548,6 +6649,7 @@ static int rwnx_cfg80211_get_station(struct wiphy *wiphy,
         struct station_info *sinfo)
 {
     struct rwnx_vif *vif = netdev_priv(dev);
+#endif
     struct rwnx_sta *sta = NULL;
 
     if (RWNX_VIF_TYPE(vif) == NL80211_IFTYPE_MONITOR)
@@ -6580,11 +6682,20 @@ static int rwnx_cfg80211_get_station(struct wiphy *wiphy,
 /**
  * @dump_station: dump station callback -- resume dump at index @idx
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+static int rwnx_cfg80211_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
+                                      int idx, u8 *mac, struct station_info *sinfo)
+{
+    struct rwnx_vif *rwnx_vif = container_of(wdev, struct rwnx_vif, wdev);
+    struct net_device *dev = wdev->netdev;
+    struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
+#else
 static int rwnx_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
                                       int idx, u8 *mac, struct station_info *sinfo)
 {
     struct rwnx_vif *rwnx_vif = netdev_priv(dev);
     struct rwnx_hw *rwnx_hw = wiphy_priv(wiphy);
+#endif
     struct rwnx_sta *sta_iter, *sta = NULL;
     struct mesh_peer_info_cfm peer_info_cfm;
     int i = 0;
