@@ -31,7 +31,7 @@ make -C "${SCRIPT_DIR}/drivers/aic8800" install
 # 3. Deploy firmware files
 echo -e "\n\e[33m[3/6] Deploying firmware files to /lib/firmware/...\e[0m"
 mkdir -p /lib/firmware/
-cp -rf "${SCRIPT_DIR}/fw/aic8800DC" /lib/firmware/
+cp -rf "${SCRIPT_DIR}/fw/"* /lib/firmware/
 
 # 4. Deploy udev rules
 echo -e "\n\e[33m[4/6] Deploying udev mode-switching rules...\e[0m"
@@ -44,14 +44,12 @@ udevadm control --reload-rules
 udevadm trigger
 
 # Eject virtual CD-ROM to force Wi-Fi mode
-if [ -L /dev/aicudisk ]; then
-    echo "[INFO] Ejecting old storage interface /dev/aicudisk..."
-    eject /dev/aicudisk || true
-fi
-if [ -L /dev/aicudiskv2 ]; then
-    echo "[INFO] Ejecting new storage interface /dev/aicudiskv2..."
-    eject /dev/aicudiskv2 || true
-fi
+for disk in /dev/aicudisk /dev/aicudiskv2 /dev/ugreenax900 /dev/tendaudisk* /dev/cudydisk*; do
+    if [ -L "$disk" ] || [ -e "$disk" ]; then
+        echo "[INFO] Ejecting storage interface $disk..."
+        eject "$disk" || true
+    fi
+done
 
 # 6. Reload kernel modules
 echo -e "\n\e[33m[6/6] Reloading kernel driver modules...\e[0m"

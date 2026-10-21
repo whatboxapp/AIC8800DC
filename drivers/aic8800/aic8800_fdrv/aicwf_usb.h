@@ -43,6 +43,7 @@
 #define USB_PRODUCT_ID_TENDA                0x0013
 #define USB_PRODUCT_ID_TENDA_U2             0x0014
 #define USB_PRODUCT_ID_AIC8800M80_CUS2     0x8d85
+#define USB_PRODUCT_ID_AIC8800D80_UGREEN   0x8d88
 #endif
 
 enum AICWF_IC{

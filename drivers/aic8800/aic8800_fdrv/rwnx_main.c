@@ -4518,7 +4518,11 @@ static int rwnx_cfg80211_add_station(struct wiphy *wiphy,
                 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
                 sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
                 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0))
+                        cfg80211_new_sta(&rwnx_vif->wdev, sta->mac_addr, &sinfo, GFP_KERNEL);
+#else
                         cfg80211_new_sta(rwnx_vif->ndev, sta->mac_addr, &sinfo, GFP_KERNEL);
+#endif
             }
 #ifdef CONFIG_RWNX_BFMER
             if (rwnx_hw->mod_params->bfmer)

@@ -1,3 +1,5 @@
+EXTRA_CFLAGS += -Wno-error -Wno-attribute-warning
+ccflags-y += -Wno-error -Wno-attribute-warning
 EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
 EXTRA_CFLAGS += -Wno-implicit-fallthrough
 #EXTRA_CFLAGS += -Wno-unused-variable
