@@ -19,27 +19,36 @@ echo "##################################################"
 # Get the directory where the script is located
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# 1. Compile the driver
-echo -e "\n\e[33m[1/6] Compiling wireless driver for kernel $(uname -r)...\e[0m"
+# 1. Install dependencies
+echo -e "\n\e[33m[1/7] Installing build dependencies...\e[0m"
+if command -v apt >/dev/null 2>&1; then
+    apt update -y || true
+    apt install -y build-essential linux-headers-$(uname -r) dkms bc gcc g++ make cmake git
+elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y gcc gcc-c++ make cmake git bc dkms "kernel-devel-$(uname -r)" "kernel-headers-$(uname -r)" || true
+fi
+
+# 2. Compile the driver
+echo -e "\n\e[33m[2/7] Compiling wireless driver for kernel $(uname -r)...\e[0m"
 make -C "${SCRIPT_DIR}/drivers/aic8800" clean
 make -C "${SCRIPT_DIR}/drivers/aic8800"
 
-# 2. Install kernel modules
-echo -e "\n\e[33m[2/6] Installing kernel modules into the system...\e[0m"
+# 3. Install kernel modules
+echo -e "\n\e[33m[3/7] Installing kernel modules into the system...\e[0m"
 make -C "${SCRIPT_DIR}/drivers/aic8800" install
 
-# 3. Deploy firmware files
-echo -e "\n\e[33m[3/6] Deploying firmware files to /lib/firmware/...\e[0m"
+# 4. Deploy firmware files
+echo -e "\n\e[33m[4/7] Deploying firmware files to /lib/firmware/...\e[0m"
 mkdir -p /lib/firmware/
 cp -rf "${SCRIPT_DIR}/fw/"* /lib/firmware/
 
-# 4. Deploy udev rules
-echo -e "\n\e[33m[4/6] Deploying udev mode-switching rules...\e[0m"
+# 5. Deploy udev rules
+echo -e "\n\e[33m[5/7] Deploying udev mode-switching rules...\e[0m"
 cp -f "${SCRIPT_DIR}/tools/aic.rules" /lib/udev/rules.d/
 cp -f "${SCRIPT_DIR}/tools/aic.rules" /etc/udev/rules.d/
 
-# 5. Reload udev and trigger mode switch
-echo -e "\n\e[33m[5/6] Reloading udev and triggering USB mode switch...\e[0m"
+# 6. Reload udev and trigger mode switch
+echo -e "\n\e[33m[6/7] Reloading udev and triggering USB mode switch...\e[0m"
 udevadm control --reload-rules
 udevadm trigger
 
@@ -51,8 +60,8 @@ for disk in /dev/aicudisk /dev/aicudiskv2 /dev/ugreenax900 /dev/tendaudisk* /dev
     fi
 done
 
-# 6. Reload kernel modules
-echo -e "\n\e[33m[6/6] Reloading kernel driver modules...\e[0m"
+# 7. Reload kernel modules
+echo -e "\n\e[33m[7/7] Reloading kernel driver modules...\e[0m"
 modprobe -r aic8800_fdrv || true
 modprobe -r aic_load_fw || true
 modprobe aic_load_fw
