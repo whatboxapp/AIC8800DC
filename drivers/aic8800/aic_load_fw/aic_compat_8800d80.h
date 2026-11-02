@@ -5,6 +5,7 @@
 #define USB_DEVICE_ID_AIC_8800D81       0x8D81
 #define USB_DEVICE_ID_AIC_8800D40       0x8D40
 #define USB_DEVICE_ID_AIC_8800D41       0x8D41
+#define USB_DEVICE_ID_AIC_8800D84       0x8D84
 
 #define FW_BASE_NAME_8800D80                "fmacfw_8800d80.bin"
 #define FW_RF_BASE_NAME_8800D80             "fmacfw_rf_8800d80.bin"
